@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bộ Công Cụ Thu Thập Thông Tin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @keyframes bounce-short {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        .animate-bounce-short {
+            animation: bounce-short 1s infinite ease-in-out;
+        }
+        .tally-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 32px;
+            height: 32px;
+            margin-right: 12px;
+        }
+        .tally-line {
+            width: 4px;
+            height: 32px;
+            background-color: #334155;
+            border-radius: 999px;
+            margin-right: 4px;
+        }
+        .tally-diagonal {
+            position: absolute;
+            top: 50%;
+            left: -4px;
+            width: 40px;
+            height: 4px;
+            background-color: #ef4444;
+            border-radius: 999px;
+            transform: rotate(-45deg) translateY(-50%);
+        }
+        
+        /* SCENE BACKGROUNDS */
+        .scene-container {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.5s ease;
+        }
+
+        /* 1. Farm Scene */
+        .bg-farm {
+            background-color: #86efac;
+            background-image: 
+                radial-gradient(circle at 10% 20%, #4ade80 2%, transparent 2.5%),
+                radial-gradient(circle at 90% 80%, #4ade80 2%, transparent 2.5%);
+            background-size: 100px 100px;
+        }
+        
+        /* 2. School Desk Scene */
+        .bg-school {
+            background-color: #fbd38d; /* Wood color */
+            background-image: repeating-linear-gradient(45deg, #f6ad55 0, #f6ad55 2px, transparent 0, transparent 50%);
+            background-size: 20px 20px;
+            opacity: 1;
+        }
+
+        /* 3. Toy Room Scene */
+        .bg-toys {
+            background-color: #e0e7ff;
+            background-image: 
+                linear-gradient(90deg, rgba(200,200,255,.5) 50%, transparent 50%),
+                linear-gradient(rgba(200,200,255,.5) 50%, transparent 50%);
+            background-size: 50px 50px;
+        }
+
+        /* 4. Picnic Fruit Scene */
+        .bg-fruit {
+            background-color: #fff1f2;
+            background-image: 
+                linear-gradient(90deg, #fecdd3 25px, transparent 25px),
+                linear-gradient(#fecdd3 25px, transparent 25px);
+            background-size: 50px 50px;
+        }
+
+        /* Generic Decor Elements */
+        .pond {
+            position: absolute;
+            background-color: #60a5fa;
+            border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+            box-shadow: inset 0 0 20px #2563eb;
+            opacity: 0.9;
+            animation: water-wobble 8s ease-in-out infinite;
+        }
+        .mud-pit {
+            position: absolute;
+            background-color: #78350f;
+            border-radius: 50%;
+            opacity: 0.3;
+            filter: blur(2px);
+        }
+        .bush { position: absolute; font-size: 2rem; z-index: 1; opacity: 0.8; }
+        
+        .pencil-holder { position: absolute; font-size: 4rem; z-index: 1; bottom: 20px; right: 20px; opacity: 0.9; }
+        .lamp { position: absolute; font-size: 5rem; z-index: 1; top: -20px; left: 20px; opacity: 0.8; transform: rotate(180deg); }
+        
+        .toy-box { position: absolute; font-size: 5rem; z-index: 1; bottom: 10px; left: 10px; opacity: 0.9; }
+        .window { position: absolute; width: 120px; height: 100px; background: #bfdbfe; border: 4px solid white; top: 20px; right: 40px; border-radius: 4px; opacity: 0.8; }
+        
+        .basket { position: absolute; font-size: 5rem; z-index: 1; top: 20px; left: 20px; opacity: 0.9; }
+        .napkin { position: absolute; width: 100px; height: 100px; background: white; transform: rotate(15deg); bottom: 30px; right: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 4px; }
+
+        .item-icon {
+            position: absolute;
+            font-size: 2.5rem;
+            cursor: default;
+            user-select: none;
+            transition: transform 0.2s;
+            filter: drop-shadow(0 4px 3px rgba(0,0,0,0.15));
+            z-index: 10;
+        }
+        .item-icon:hover {
+            transform: scale(1.2) rotate(5deg);
+            z-index: 20;
+        }
+        @keyframes water-wobble {
+            0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+            50% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+        }
+        
+        /* Modal Styles */
+        #resetModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        
+        .tab-btn.active {
+            background-color: #4f46e5;
+            color: white;
+            border-color: #4338ca;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen p-4 md:p-8 relative">
+
+    <!-- Exercise Tabs (Top Right) -->
+    <div class="fixed top-4 right-4 z-50 bg-white/90 backdrop-blur shadow-lg rounded-full p-1.5 flex gap-2 border border-slate-200">
+        <button onclick="switchExercise(0)" id="tab-0" class="tab-btn w-10 h-10 rounded-full flex items-center justify-center font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent active">1</button>
+        <button onclick="switchExercise(1)" id="tab-1" class="tab-btn w-10 h-10 rounded-full flex items-center justify-center font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent">2</button>
+        <button onclick="switchExercise(2)" id="tab-2" class="tab-btn w-10 h-10 rounded-full flex items-center justify-center font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent">3</button>
+        <button onclick="switchExercise(3)" id="tab-3" class="tab-btn w-10 h-10 rounded-full flex items-center justify-center font-bold text-slate-500 hover:bg-slate-100 transition-all border border-transparent">4</button>
+    </div>
+
+    <div class="max-w-6xl mx-auto mt-8">
+        <!-- Header Section -->
+        <header class="mb-8 text-center">
+            <h1 id="main-title" class="text-3xl font-bold text-indigo-700 mb-2 flex items-center justify-center gap-2">
+                <i data-lucide="clipboard-check" class="w-8 h-8"></i>
+                Bộ Công Cụ Thu Thập Thông Tin
+            </h1>
+            <p id="main-instruction" class="text-slate-600">Học sinh hãy quan sát hình ảnh và thực hiện kiểm đếm</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Side: Source Image Area -->
+            <div class="space-y-4">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="font-semibold text-lg flex items-center gap-2">
+                            <i data-lucide="image" class="text-indigo-500"></i>
+                            <span id="scene-title">Nông Trại Vui Vẻ</span>
+                        </h2>
+                        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Hình ảnh trực quan</span>
+                    </div>
+                    
+                    <!-- Generated Scene -->
+                    <div id="scene-container" class="aspect-video scene-container rounded-xl shadow-inner border-4 border-slate-200 relative bg-farm">
+                        <!-- Decor (Injected by JS) -->
+                        <div id="scene-decor"></div>
+                        <!-- Items (Injected by JS) -->
+                        <div id="scene-items"></div>
+                    </div>
+                    
+                    <div class="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-100">
+                        <p class="text-sm text-amber-800 italic font-medium flex gap-2">
+                           <i data-lucide="search" class="w-4 h-4 mt-0.5"></i>
+                           <span id="task-hint">Nhiệm vụ: Em hãy tìm và đếm các đồ vật trong hình nhé!</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Data Collection Tools -->
+            <div class="space-y-6">
+                <!-- Method Tabs -->
+                <div id="method-tabs" class="flex bg-white p-1 rounded-xl shadow-sm border border-slate-200 transition-all duration-300">
+                    <button onclick="setMethod('number')" id="btn-number" class="method-btn flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition-all text-slate-500 hover:bg-slate-50">
+                        <i data-lucide="hash" class="w-4 h-4"></i> 1. Dùng Số
+                    </button>
+                    <button onclick="setMethod('tally')" id="btn-tally" class="method-btn flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition-all text-slate-500 hover:bg-slate-50">
+                        <i data-lucide="list-ordered" class="w-4 h-4"></i> 2. Vạch Kiểm Đếm
+                    </button>
+                    <button onclick="setMethod('symbol')" id="btn-symbol" class="method-btn flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold transition-all text-slate-500 hover:bg-slate-50">
+                        <i data-lucide="shapes" class="w-4 h-4"></i> 3. Dùng Ký Hiệu
+                    </button>
+                </div>
+
+                <!-- Collection Table -->
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden relative">
+                    <!-- Overlay for Locked State (Initial) -->
+                    <div id="locked-state" class="absolute inset-0 z-10 bg-slate-50/90 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 transition-opacity duration-300">
+                        <div class="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center mb-4 animate-bounce-short">
+                            <i data-lucide="mouse-pointer-click" class="w-8 h-8 text-indigo-500"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-700 mb-2">Chưa chọn phương pháp</h3>
+                        <p class="text-slate-500 max-w-xs">Vui lòng chọn một trong 3 phương pháp ở trên để bắt đầu đếm.</p>
+                    </div>
+
+                    <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-700 uppercase tracking-wide">Bảng Thu Thập</h3>
+                        <div class="flex gap-2">
+                            <!-- Helper feature for teachers -->
+                            <button id="btn-check" onclick="checkAnswers()" class="px-3 py-1 text-xs font-bold text-indigo-600 bg-indigo-100 rounded-lg hover:bg-indigo-200 transition-colors opacity-50 cursor-not-allowed" disabled>
+                                Kiểm tra
+                            </button>
+                            <button onclick="showResetModal()" class="p-2 hover:bg-red-50 text-red-500 rounded-full transition-colors" title="Đặt lại và chọn phương pháp mới">
+                                <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="collection-rows" class="divide-y divide-slate-100 min-h-[300px]">
+                        <!-- Rows will be generated by JS -->
+                    </div>
+
+                    <div class="p-6 bg-indigo-50/30">
+                        <div class="flex items-center justify-between">
+                            <div class="text-slate-600 font-medium text-lg">Tổng số đã đếm:</div>
+                            <div id="total-count" class="text-3xl font-black text-indigo-600 bg-white px-6 py-2 rounded-2xl shadow-inner border border-indigo-100">
+                                0
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback State -->
+                <div id="feedback-box" class="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-start gap-3 hidden">
+                    <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600 mt-0.5"></i>
+                    <div>
+                        <h4 class="font-bold text-emerald-800 text-sm uppercase tracking-wide">Kết quả</h4>
+                        <p id="conclusion-text" class="text-emerald-700 text-sm mt-1">
+                            <!-- Filled by JS -->
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Confirmation Modal -->
+    <div id="resetModal">
+        <div class="bg-white p-6 rounded-2xl max-w-sm w-full mx-4 shadow-2xl">
+            <h3 class="text-xl font-bold mb-2">Chọn lại phương pháp?</h3>
+            <p class="text-slate-600 mb-6">Hành động này sẽ xóa dữ liệu đang đếm và cho phép bạn chọn phương pháp thu thập mới.</p>
+            <div class="flex gap-3">
+                <button onclick="hideResetModal()" class="flex-1 py-2 bg-slate-100 rounded-xl font-semibold hover:bg-slate-200">Hủy</button>
+                <button onclick="confirmReset()" class="flex-1 py-2 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700">Đồng ý</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA & CONFIGURATION ---
+        
+        // Define all 4 exercises
+        const exercises = [
+            {
+                id: 'farm',
+                title: 'Nông Trại Vui Vẻ',
+                bgClass: 'bg-farm',
+                decorHTML: `
+                    <div class="pond" style="width: 25%; height: 25%; bottom: 5%; right: 5%;"></div>
+                    <div class="mud-pit" style="width: 15%; height: 20%; top: 10%; left: 5%;"></div>
+                    <div class="bush" style="top: 10%; left: 15%;">🌳</div>
+                    <div class="bush" style="top: 5%; right: 40%;">🌳</div>
+                    <div class="bush" style="bottom: 30%; left: -1%;">🌿</div>
+                    <div class="bush" style="bottom: 10%; right: 35%;">🌾</div>
+                `,
+                items: [
+                    { id: 'duck', name: 'Con Vịt', emoji: '🦆', color: 'bg-yellow-100', count: 5 },
+                    { id: 'chicken', name: 'Con Gà', emoji: '🐔', color: 'bg-orange-100', count: 7 },
+                    { id: 'pig', name: 'Con Lợn', emoji: '🐷', color: 'bg-pink-100', count: 4 },
+                    { id: 'cow', name: 'Con Bò', emoji: '🐮', color: 'bg-blue-100', count: 3 }
+                ]
+            },
+            {
+                id: 'school',
+                title: 'Góc Học Tập',
+                bgClass: 'bg-school',
+                decorHTML: `
+                    <div class="pencil-holder">✏️</div>
+                    <div class="lamp">🔦</div>
+                `,
+                items: [
+                    { id: 'pencil', name: 'Bút chì', emoji: '✏️', color: 'bg-yellow-100', count: 3 },
+                    { id: 'ruler', name: 'Thước kẻ', emoji: '📏', color: 'bg-slate-100', count: 2 },
+                    { id: 'eraser', name: 'Cục tẩy', emoji: '🧼', color: 'bg-pink-100', count: 2 },
+                    { id: 'notebook', name: 'Quyển vở', emoji: '📓', color: 'bg-blue-100', count: 2 }
+                ] // Total = 9 (<10)
+            },
+            {
+                id: 'toys',
+                title: 'Phòng Đồ Chơi',
+                bgClass: 'bg-toys',
+                decorHTML: `
+                    <div class="toy-box">📦</div>
+                    <div class="window"></div>
+                `,
+                items: [
+                    { id: 'car', name: 'Ô tô', emoji: '🚗', color: 'bg-red-100', count: 2 },
+                    { id: 'doll', name: 'Búp bê', emoji: '🎎', color: 'bg-purple-100', count: 2 },
+                    { id: 'ball', name: 'Quả bóng', emoji: '⚽', color: 'bg-white', count: 3 },
+                    { id: 'lego', name: 'Lego', emoji: '🧱', color: 'bg-green-100', count: 2 }
+                ] // Total = 9 (<10)
+            },
+            {
+                id: 'fruits',
+                title: 'Tiệc Hoa Quả',
+                bgClass: 'bg-fruit',
+                decorHTML: `
+                    <div class="basket">🧺</div>
+                    <div class="napkin"></div>
+                `,
+                items: [
+                    { id: 'orange', name: 'Quả Cam', emoji: '🍊', color: 'bg-orange-100', count: 2 },
+                    { id: 'apple', name: 'Quả Táo', emoji: '🍎', color: 'bg-red-100', count: 3 },
+                    { id: 'mango', name: 'Quả Xoài', emoji: '🥭', color: 'bg-yellow-100', count: 2 },
+                    { id: 'watermelon', name: 'Dưa hấu', emoji: '🍉', color: 'bg-green-100', count: 2 }
+                ] // Total = 9 (<10)
+            }
+        ];
+
+        // --- STATE ---
+        let currentExerciseIndex = 0;
+        let currentMethod = null; // null, 'number', 'tally', 'symbol'
+        let userCounts = {}; // Stores current user inputs
+        
+        // --- LOGIC ---
+
+        // 1. Switch Exercise
+        function switchExercise(index) {
+            currentExerciseIndex = index;
+            const exercise = exercises[index];
+            
+            // Reset State
+            currentMethod = null;
+            userCounts = {};
+            exercise.items.forEach(item => userCounts[item.id] = 0);
+
+            // Update Header & Title
+            document.getElementById('scene-title').innerText = exercise.title;
+            document.getElementById('task-hint').innerText = `Nhiệm vụ: Em hãy tìm và đếm xem có bao nhiêu ${exercise.items.map(i => i.name).join(', ')} nhé!`;
+
+            // Update Tabs Styling
+            document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+                if (idx === index) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+
+            // Update Scene
+            const sceneContainer = document.getElementById('scene-container');
+            // Remove old bg classes
+            sceneContainer.classList.remove('bg-farm', 'bg-school', 'bg-toys', 'bg-fruit');
+            sceneContainer.classList.add(exercise.bgClass);
+            
+            document.getElementById('scene-decor').innerHTML = exercise.decorHTML;
+            
+            // Generate Items
+            generateSceneItems(exercise.items);
+
+            // Reset UI
+            updateUI();
+        }
+
+        // 2. Generate Scene Items (Collision Detection)
+        function generateSceneItems(itemsConfig) {
+            const container = document.getElementById('scene-items');
+            container.innerHTML = '';
+            
+            const placedItems = [];
+
+            itemsConfig.forEach(item => {
+                for (let i = 0; i < item.count; i++) {
+                    let placed = false;
+                    let attempts = 0;
+                    
+                    while (!placed && attempts < 100) {
+                        const x = Math.random() * 80 + 5; 
+                        const y = Math.random() * 75 + 5;
+
+                        // Simple collision check
+                        const isOverlapping = placedItems.some(p => {
+                            const dx = p.x - x;
+                            const dy = (p.y - y) * (16/9); 
+                            return Math.sqrt(dx*dx + dy*dy) < 9;
+                        });
+
+                        if (!isOverlapping) {
+                            const el = document.createElement('div');
+                            el.className = 'item-icon';
+                            el.innerText = item.emoji;
+                            el.style.left = `${x}%`;
+                            el.style.top = `${y}%`;
+                            el.style.transform = `rotate(${(Math.random() - 0.5) * 30}deg)`;
+                            
+                            container.appendChild(el);
+                            placedItems.push({x, y});
+                            placed = true;
+                        }
+                        attempts++;
+                    }
+                }
+            });
+        }
+
+        // 3. UI Updates (Table & Controls)
+        function updateUI() {
+            const exercise = exercises[currentExerciseIndex];
+
+            // Method Selection Visibility
+            const methods = ['number', 'tally', 'symbol'];
+            if (currentMethod === null) {
+                methods.forEach(m => {
+                    const btn = document.getElementById(`btn-${m}`);
+                    btn.style.display = 'flex';
+                    btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+                    btn.classList.add('text-slate-500', 'hover:bg-slate-50');
+                });
+                document.getElementById('locked-state').style.display = 'flex';
+                document.getElementById('btn-check').disabled = true;
+                document.getElementById('btn-check').classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                methods.forEach(m => {
+                    const btn = document.getElementById(`btn-${m}`);
+                    if (m === currentMethod) {
+                        btn.style.display = 'flex';
+                        btn.classList.remove('text-slate-500', 'hover:bg-slate-50');
+                        btn.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+                    } else {
+                        btn.style.display = 'none';
+                    }
+                });
+                document.getElementById('locked-state').style.display = 'none';
+                document.getElementById('btn-check').disabled = false;
+                document.getElementById('btn-check').classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+
+            // Render Table Rows
+            const container = document.getElementById('collection-rows');
+            container.innerHTML = '';
+            
+            let total = 0;
+
+            exercise.items.forEach(item => {
+                const count = userCounts[item.id] || 0;
+                total += count;
+
+                let dataDisplay = '';
+                if (currentMethod === 'number') {
+                    dataDisplay = `<div class="flex items-center gap-2 text-2xl font-mono font-bold text-indigo-700">${count}</div>`;
+                } else if (currentMethod === 'tally') {
+                    dataDisplay = renderTally(count);
+                } else if (currentMethod === 'symbol') {
+                    dataDisplay = renderSymbols(count, item.emoji);
+                } else {
+                    dataDisplay = `<span class="text-slate-200">---</span>`;
+                }
+
+                const btnDisabledClass = currentMethod === null ? 'opacity-20 pointer-events-none' : '';
+
+                const row = document.createElement('div');
+                row.className = 'p-4 flex flex-col sm:flex-row sm:items-center gap-4';
+                row.innerHTML = `
+                    <div class="flex items-center gap-3 w-40 shrink-0">
+                        <div class="w-12 h-12 ${item.color} rounded-xl flex items-center justify-center text-2xl shadow-sm border border-white/50">
+                            ${item.emoji}
+                        </div>
+                        <span class="font-bold text-slate-700">${item.name}</span>
+                    </div>
+
+                    <div class="flex-grow bg-slate-50/50 rounded-xl p-3 border border-slate-100 min-h-[56px] flex items-center transition-all duration-300" id="display-${item.id}">
+                        ${dataDisplay}
+                    </div>
+
+                    <div class="flex items-center gap-2 ${btnDisabledClass}">
+                        <button onclick="changeCount('${item.id}', -1)" class="w-10 h-10 rounded-full border-2 border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:border-slate-300 active:scale-95 transition-all font-bold text-xl">-</button>
+                        <button onclick="changeCount('${item.id}', 1)" class="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-white shadow-lg shadow-green-200 hover:bg-green-600 active:scale-95 transition-all font-bold text-2xl">+</button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+
+            document.getElementById('total-count').innerText = total;
+            document.getElementById('feedback-box').classList.add('hidden');
+        }
+
+        // --- HELPERS ---
+        function renderTally(count) {
+            if (count === 0) return `<span class="text-slate-300 italic text-sm">Chưa có dữ liệu</span>`;
+            const groups = Math.floor(count / 5);
+            const remainder = count % 5;
+            let html = '<div class="flex flex-wrap items-center">';
+            for (let i = 0; i < groups; i++) {
+                html += `<div class="tally-group"><div class="tally-line"></div><div class="tally-line"></div><div class="tally-line"></div><div class="tally-line"></div><div class="tally-diagonal"></div></div>`;
+            }
+            for (let i = 0; i < remainder; i++) {
+                html += `<div class="tally-line mr-1"></div>`;
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function renderSymbols(count, emoji) {
+            if (count === 0) return `<span class="text-slate-300 italic text-sm">Chưa có dữ liệu</span>`;
+            let html = '<div class="flex flex-wrap gap-1 items-center">';
+            for (let i = 0; i < count; i++) {
+                html += `<span class="text-2xl animate-bounce-short" style="animation-delay: ${i * 0.1}s">${emoji}</span>`;
+            }
+            html += '</div>';
+            return html;
+        }
+
+        // --- GLOBAL ACTIONS ---
+        window.changeCount = (id, delta) => {
+            if (currentMethod === null) return;
+            userCounts[id] = Math.max(0, (userCounts[id] || 0) + delta);
+            updateUI();
+        };
+
+        window.setMethod = (method) => {
+            currentMethod = method;
+            updateUI();
+        };
+
+        window.showResetModal = () => document.getElementById('resetModal').style.display = 'flex';
+        window.hideResetModal = () => document.getElementById('resetModal').style.display = 'none';
+        
+        window.confirmReset = () => {
+            currentMethod = null;
+            Object.keys(userCounts).forEach(k => userCounts[k] = 0);
+            updateUI();
+            hideResetModal();
+        };
+
+        window.checkAnswers = () => {
+            if (currentMethod === null) return;
+            const exercise = exercises[currentExerciseIndex];
+            let correct = 0;
+            let feedback = [];
+
+            exercise.items.forEach(item => {
+                const userVal = userCounts[item.id] || 0;
+                const trueVal = item.count;
+                const displayEl = document.getElementById(`display-${item.id}`);
+
+                if (userVal === trueVal) {
+                    correct++;
+                    displayEl.classList.add('bg-green-100', 'border-green-300');
+                } else {
+                    displayEl.classList.add('bg-red-100', 'border-red-300');
+                    if (userVal < trueVal) feedback.push(`Thiếu ${trueVal - userVal} ${item.name}`);
+                    else feedback.push(`Dư ${userVal - trueVal} ${item.name}`);
+                }
+            });
+
+            const feedbackBox = document.getElementById('feedback-box');
+            const conclusionText = document.getElementById('conclusion-text');
+            feedbackBox.classList.remove('hidden');
+
+            if (correct === exercise.items.length) {
+                feedbackBox.className = "p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-start gap-3";
+                feedbackBox.querySelector('h4').innerText = "Tuyệt vời!";
+                conclusionText.innerText = "Em đếm rất giỏi! Tất cả số liệu đều chính xác.";
+            } else {
+                feedbackBox.className = "p-4 bg-orange-50 rounded-xl border border-orange-100 flex items-start gap-3";
+                feedbackBox.querySelector('h4').innerText = "Cố gắng lên!";
+                conclusionText.innerHTML = `Kiểm tra lại nhé: ${feedback.slice(0, 2).join(', ')}...`;
+            }
+        };
+
+        window.switchExercise = switchExercise;
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            switchExercise(0); // Load first exercise
+        });
+    </script>
+</body>
+</html>
